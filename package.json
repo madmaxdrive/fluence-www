@@ -8,6 +8,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@emotion/react": "^11.5.0",
+    "@emotion/styled": "^11.3.0",
+    "@fontsource/roboto": "^4.5.1",
+    "@metamask/detect-provider": "^1.2.0",
+    "@mui/material": "^5.0.6",
+    "@types/elliptic": "^6.4.14",
+    "elliptic": "^6.5.4",
+    "enc-utils": "^3.0.0",
+    "ethers": "^5.5.1",
+    "hash.js": "^1.1.7",
     "next": "12.0.2",
     "react": "17.0.2",
     "react-dom": "17.0.2"
