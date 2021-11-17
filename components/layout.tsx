@@ -1,9 +1,12 @@
 import React, { PropsWithChildren } from 'react'
 import NextLink from 'next/link';
-import { Link } from '@mui/material'
+import { Link, Typography } from '@mui/material'
+import { useAccount } from '../ethereum_provider';
 import layout from '../styles/layout.module.css';
 
 export default function Layout({ children }: PropsWithChildren<{}>) {
+  const account = useAccount();
+
   return (
     <div className={layout.wrap}>
       <main className={layout.main}>
@@ -19,6 +22,7 @@ export default function Layout({ children }: PropsWithChildren<{}>) {
         <NextLink href="/exchange">
           <Link mx={.5}>Exchange</Link>
         </NextLink>
+        <Typography variant="body2">{account}</Typography>
       </footer>
     </div>
   );

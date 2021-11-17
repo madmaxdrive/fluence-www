@@ -1,7 +1,7 @@
 import assert from 'assert';
 import BN from 'bn.js';
 import { curves, ec } from 'elliptic';
-import { BigNumber, utils } from 'ethers';
+import { BigNumber, providers, utils } from 'ethers';
 import hash from 'hash.js'
 import constantPointsHex from './constant_points.json';
 
@@ -81,7 +81,7 @@ export function derive_private_key(account: string, seed: string): BigNumber {
 
       const n = SECP256K1_N.sub(SECP256K1_N.mod(EC_ORDER));
       for (let i = 0; ; i++) {
-            const k = BigNumber.from(utils.sha256(utils.hexConcat([derived, i])));
+            const k = BigNumber.from(utils.sha256(utils.hexConcat([derived, i as any])));
             if (k.lt(n)) {
                   return k.mod(EC_ORDER);
             }
@@ -146,4 +146,25 @@ export function sign(private_key: BigNumber, message: BN) {
       assertInRange(w, one, maxEcdsaVal, 'w');
 
       return signature;
+}
+
+export class StarkSigner {
+      constructor(private account: string, private provider: providers.Web3Provider) {
+      }
+
+      async derive_stark_key() {
+            return private_to_stark_key(await this.derive_private_key());
+      }
+
+      async sign(messages: BNC[]) {
+            return sign(await this.derive_private_key(), pedersen_hash(messages));
+      }
+
+      private async derive_private_key() {
+            const signature_str = await this.provider.getSigner(this.account)
+              .signMessage('Only sign this request if you’ve initiated an action with Immutable X.');
+            const signature = utils.splitSignature(signature_str);
+
+            return derive_private_key(this.account, signature.s);
+      }
 }
