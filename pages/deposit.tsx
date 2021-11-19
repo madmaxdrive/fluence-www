@@ -10,16 +10,18 @@ import {
   CircularProgress,
   Container,
   FormControl,
-  InputLabel, Link,
+  InputLabel,
+  Link,
   MenuItem,
   Select,
   TextField,
   Typography
 } from '@mui/material';
-import { BigNumber, providers } from 'ethers';
+import { BigNumber } from 'ethers';
 import { useAccount, useERC20, useERC721, useFluence, useStarkSigner } from '../ethereum_provider';
+import BN from "bn.js";
 
-const L2_CONTRACT_ADDRESS = '0x491d5830e5ad80fd57ce1bd26e255136eddda102faf0f935620807521557e54';
+const L2_CONTRACT_ADDRESS = '0x0345694ad48166e1fdf36643044f696c571a18605ba39d99ef5ee53e54357303';
 
 const Deposit: NextPage = () => {
   const account = useAccount();
@@ -28,9 +30,10 @@ const Deposit: NextPage = () => {
   const fluence = useFluence();
   const starkSigner = useStarkSigner();
 
-  const [token, setToken] = useState(0);
+  const [token, setToken] = useState(1);
   const [amountOrTokenId, setAmountOrTokenId] = useState(0);
   const [transactions, setTransactions] = useState<TransactionReceipt[]>([]);
+  const [token2, setToken2] = useState(1);
   const [balance, setBalance] = useState<number>();
   const [tokenId, setTokenId] = useState(0);
   const [owner, setOwner] = useState('');
@@ -44,31 +47,44 @@ const Deposit: NextPage = () => {
 
     setLoading(true);
     switch (((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.name) {
-      case 'deposit':
-        const contract = [erc20, erc721][token];
-        setTransactions([
+      case 'deposit': {
+        const contract = [null, erc20, erc721][token];
+        setTransactions((!contract ? [
+          await fluence['deposit(uint256,uint256)'](
+            L2_CONTRACT_ADDRESS,
+            BigNumber.from(String(await starkSigner.derive_stark_key())),
+            { value: amountOrTokenId, gasLimit: 180000 }),
+        ] : [
           await contract.approve(fluence.address, amountOrTokenId),
-          await fluence.deposit(
+          await fluence['deposit(uint256,uint256,uint256,address)'](
             L2_CONTRACT_ADDRESS,
             BigNumber.from(String(await starkSigner.derive_stark_key())),
             amountOrTokenId,
             contract.address,
-            { gasLimit: 130000 })
-        ].map(tx => ({
+            { gasLimit: 180000 }),
+        ]).map(tx => ({
           layer: 1,
           hash: tx.hash,
         })));
         break;
+      }
 
-      case 'withdraw-l2':
+      case 'withdraw-l2': {
+        const contract = ['0x0', erc20.address, erc721.address][token];
+        const [stark_key, signature] = await starkSigner.sign([
+          amountOrTokenId,
+          new BN(contract.slice(2), 16),
+          new BN(account.slice(2), 16),
+        ]);
         const { data } = await axios.post<{ transaction_hash: string }>('/api/v1/withdraw', {
           user: String(await starkSigner.derive_stark_key()),
           amount_or_token_id: amountOrTokenId,
-          contract: [erc20, erc721][token].address,
+          contract: [0, erc20.address, erc721.address][token],
           address: account,
         });
         setTransactions([{ layer: 2, hash: data.transaction_hash }]);
         break;
+      }
 
       case 'withdraw-l1':
         setTransactions([
@@ -76,7 +92,7 @@ const Deposit: NextPage = () => {
             L2_CONTRACT_ADDRESS,
             account,
             amountOrTokenId,
-            [erc20, erc721][token].address,
+            ['0x0', erc20.address, erc721.address][token],
             { gasLimit: 110000 }),
         ].map(tx => ({
           layer: 1,
@@ -87,7 +103,8 @@ const Deposit: NextPage = () => {
 
     setLoading(false);
   };
-  const handleGetBalance = async () => {
+  const handleGetBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!erc20 || !starkSigner) {
       return;
     }
@@ -97,7 +114,7 @@ const Deposit: NextPage = () => {
     const { data } = await axios.get<{ balance: number }>('/api/v1/balance', {
       params: {
         user: String(stark_key),
-        contract: erc20.address,
+        contract: [0, erc20.address][token2],
       }
     });
 
@@ -138,8 +155,9 @@ const Deposit: NextPage = () => {
         >
           <InputLabel id="token">Token</InputLabel>
           <Select labelId="token" label="Token *" value={token} onChange={({ target: { value } }) => setToken(+value)}>
-            <MenuItem value={0}>Testdrive / TDR (ERC20)</MenuItem>
-            <MenuItem value={1}>Testdrive NFT / TDRN (ERC721)</MenuItem>
+            <MenuItem value={0}>Ethereum / ETH</MenuItem>
+            <MenuItem value={1}>Testdrive / TDR (ERC20)</MenuItem>
+            <MenuItem value={2}>Testdrive NFT / TDRN (ERC721)</MenuItem>
           </Select>
         </FormControl>
         <TextField
@@ -148,7 +166,7 @@ const Deposit: NextPage = () => {
           margin="normal"
           variant="outlined"
           type="number"
-          label={['Amount', 'Token ID'][token]}
+          label={['Amount', 'Amount', 'Token ID'][token]}
           onChange={({ target: { value }}) => setAmountOrTokenId(+value)}
         />
 
@@ -165,8 +183,24 @@ const Deposit: NextPage = () => {
         </Typography>
       ))}
 
-      <Typography variant="h2" mt={2}>Testdrive / TDR (ERC20)</Typography>
-      <Button type="button" onClick={handleGetBalance}>Get balance (Layer 2)</Button>
+      <Typography variant="h2" mt={2}>Ethereum & Testdrive / TDR (ERC20)</Typography>
+      <form onSubmit={handleGetBalance}>
+        <FormControl
+          required
+          fullWidth
+          margin="normal"
+        >
+          <InputLabel id="token">Token</InputLabel>
+          <Select labelId="token" label="Token *" value={token2} onChange={({ target: { value } }) => setToken2(+value)}>
+            <MenuItem value={0}>Ethereum / ETH</MenuItem>
+            <MenuItem value={1}>Testdrive / TDR (ERC20)</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Box>
+          <Button type="submit">Get balance (Layer 2)</Button>
+        </Box>
+      </form>
       {undefined !== balance && (
         <Alert severity="info" sx={{ my: 1 }}>{balance}</Alert>
       )}

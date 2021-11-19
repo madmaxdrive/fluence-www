@@ -156,8 +156,12 @@ export class StarkSigner {
             return private_to_stark_key(await this.derive_private_key());
       }
 
-      async sign(messages: BNC[]) {
-            return sign(await this.derive_private_key(), pedersen_hash(messages));
+      async sign(messages: BNC[]): Promise<[BN, ec.Signature]> {
+            const private_key = await this.derive_private_key();
+            console.log(String(private_key));
+            console.log(messages);
+
+            return [private_to_stark_key(private_key), sign(private_key, pedersen_hash(messages))];
       }
 
       private async derive_private_key() {

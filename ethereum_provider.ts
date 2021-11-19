@@ -4,11 +4,13 @@ import detectEthereumProvider from '@metamask/detect-provider';
 import ERC20PresetMinterPauser from './abi/ERC20PresetMinterPauser.json';
 import ERC721PresetMinterPauserAutoId from './abi/ERC721PresetMinterPauserAutoId.json';
 import Fluence from './abi/Fluence.json';
-import { StarkSigner } from "./signature";
+import { StarkSigner } from './signature';
 
 export function useEthereumProvider() {
   const [ethereum, setEthereum] = useState<Required<providers.ExternalProvider>>();
-  detectEthereumProvider().then((provider: any) => setEthereum(provider));
+  if ('undefined' !== typeof window) {
+    detectEthereumProvider().then((provider: any) => setEthereum(provider));
+  }
 
   return ethereum;
 }
@@ -63,7 +65,7 @@ export function useFluence() {
 
   return useMemo(() =>
     provider && account && new Contract(
-      '0x13095e61fC38a06041f2502FcC85ccF4100FDeFf',
+      '0x999b3c4523DEB02C7a9F812D964aEA5eBf3d408B',
       Fluence,
       provider.getSigner(account)
     ), [provider, account]);
