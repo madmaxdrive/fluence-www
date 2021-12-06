@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Contract, providers } from 'ethers';
+import axios from 'axios';
+import { Contract, providers, utils } from 'ethers';
 import detectEthereumProvider from '@metamask/detect-provider';
 import ERC20PresetMinterPauser from './abi/ERC20PresetMinterPauser.json';
 import ERC721PresetMinterPauserAutoId from './abi/ERC721PresetMinterPauserAutoId.json';
 import Fluence from './abi/Fluence.json';
+import { Fluence as FluenceClass } from './fluence';
 import { StarkSigner } from './signature';
 
 export function useEthereumProvider() {
@@ -28,7 +30,7 @@ export function useAccount() {
   useEffect(() => {
     provider
       ?.request({ method: 'eth_requestAccounts' })
-      ?.then((accounts: string[]) => setAccount(accounts[0]))
+      ?.then((accounts: string[]) => setAccount(utils.getAddress(accounts[0])))
     ;
   }, [provider]);
 
@@ -41,7 +43,7 @@ export function useERC20() {
 
   return useMemo(() =>
     provider && account && new Contract(
-      '0x4A26C7daCcC90434693de4b8bede3151884cab89',
+      process.env.NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS as string,
       ERC20PresetMinterPauser,
       provider.getSigner(account)
     ), [provider, account]);
@@ -53,7 +55,7 @@ export function useERC721() {
 
   return useMemo(() =>
     provider && account && new Contract(
-      '0xfAfC4Ec8ca3Eb374fbde6e9851134816Aada912a',
+      process.env.NEXT_PUBLIC_ERC721_CONTRACT_ADDRESS as string,
       ERC721PresetMinterPauserAutoId,
       provider.getSigner(account)
     ), [provider, account]);
@@ -65,7 +67,7 @@ export function useFluence() {
 
   return useMemo(() =>
     provider && account && new Contract(
-      '0x999b3c4523DEB02C7a9F812D964aEA5eBf3d408B',
+      process.env.NEXT_PUBLIC_FLUENCE_CONTRACT_ADDRESS as string,
       Fluence,
       provider.getSigner(account)
     ), [provider, account]);
@@ -75,5 +77,21 @@ export function useStarkSigner() {
   const provider = useProvider();
   const account = useAccount();
 
-  return useMemo(() => provider && account && new StarkSigner(account, provider), [provider, account]);
+  return useMemo(() =>
+    provider && account && new StarkSigner(account, provider), [provider, account]);
+}
+
+export function useFluenceInstance() {
+  const fluence = useFluence();
+
+  return useMemo(() =>
+    fluence && new FluenceClass(
+      axios.create({ baseURL: '/api/v1' }),
+      fluence,
+      process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS as string), [fluence]);
+}
+
+export interface TransactionReceipt {
+  layer: 1 | 2;
+  hash: string;
 }

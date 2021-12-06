@@ -18,10 +18,10 @@ import {
   Typography
 } from '@mui/material';
 import { BigNumber } from 'ethers';
-import { useAccount, useERC20, useERC721, useFluence, useStarkSigner } from '../ethereum_provider';
+import { TransactionReceipt, useAccount, useERC20, useERC721, useFluence, useStarkSigner } from '../ethereum_provider';
 import BN from "bn.js";
 
-const L2_CONTRACT_ADDRESS = '0x0345694ad48166e1fdf36643044f696c571a18605ba39d99ef5ee53e54357303';
+const L2_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS;
 
 const Deposit: NextPage = () => {
   const account = useAccount();
@@ -76,7 +76,7 @@ const Deposit: NextPage = () => {
           new BN(contract.slice(2), 16),
           new BN(account.slice(2), 16),
         ]);
-        const { data } = await axios.post<{ transaction_hash: string }>('/api/v1/withdraw', {
+        const { data } = await axios.post<{ transaction_hash: string }>(`/api/v1/withdraw?signature=${signature.r},${signature.s}`, {
           user: String(await starkSigner.derive_stark_key()),
           amount_or_token_id: amountOrTokenId,
           contract: [0, erc20.address, erc721.address][token],
@@ -179,7 +179,7 @@ const Deposit: NextPage = () => {
 
       {transactions.map(tx => (
         <Typography variant="body2" key={tx.hash}>
-          <Link href={`https://${['goerli.etherscan.io', 'voyager.online'][tx.layer - 1]}/tx/${tx.hash}`}>{tx.hash}</Link>
+          <Link href={`https://${['goerli.etherscan.io', 'goerli.voyager.online'][tx.layer - 1]}/tx/${tx.hash}`}>{tx.hash}</Link>
         </Typography>
       ))}
 
@@ -230,11 +230,6 @@ const Deposit: NextPage = () => {
       </Backdrop>
     </Container>
   )
-}
-
-interface TransactionReceipt {
-  layer: 1 | 2;
-  hash: string;
 }
 
 export default Deposit;
