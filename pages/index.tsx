@@ -5,7 +5,8 @@ import axios from 'axios';
 import {
   Backdrop,
   Box,
-  Button, CircularProgress,
+  Button,
+  CircularProgress,
   Container,
   FormControl,
   InputLabel,
@@ -15,13 +16,21 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { TransactionReceipt, useAccount, useERC20, useERC721, useStarkSigner } from '../ethereum_provider';
+import {
+  TransactionReceipt,
+  useAccount,
+  useERC20,
+  useERC721,
+  useFluenceInstance,
+  useStarkSigner,
+} from '../ethereum_provider';
 
 const Home: NextPage = () => {
   const account = useAccount();
   const erc20 = useERC20();
   const erc721 = useERC721();
   const starkSigner = useStarkSigner();
+  const fluenceInstance = useFluenceInstance();
 
   const [token, setToken] = useState(1);
   const [amountOrTokenId, setAmountOrTokenId] = useState(0);
@@ -30,19 +39,27 @@ const Home: NextPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!account || !erc20 || !erc721 || !starkSigner) {
+    if (!account || !erc20 || !erc721 || !starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
     const layer = [1, 1, 2][token] as 1 | 2;
-    const { data } = await axios.post<{ transaction_hash: string }>('/api/v1/mint', {
-      user: token !== 2 ? account : String(await starkSigner.derive_stark_key()),
-      amount_or_token_id: amountOrTokenId,
-      contract: [erc20, erc721, erc721][token].address,
-      token,
-    });
-    setTransactions([{ layer, hash: data.transaction_hash }]);
+    switch (token) {
+      case 2:
+        setTransactions([{ layer, hash: await fluenceInstance.mint(starkSigner, amountOrTokenId, erc721.address) }]);
+        break;
+
+      default:
+        const { data } = await axios.post<{ transaction_hash: string }>('/api/v1/mint', {
+          user: account,
+          amount_or_token_id: amountOrTokenId,
+          contract: [erc20, erc721][token].address,
+          token,
+        });
+        setTransactions([{ layer, hash: data.transaction_hash }]);
+        break;
+    }
 
     setLoading(false);
   }

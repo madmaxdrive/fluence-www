@@ -1,7 +1,6 @@
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import React, { useState } from 'react';
-import axios from 'axios';
 import {
   Alert,
   Backdrop,
@@ -17,9 +16,15 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { BigNumber } from 'ethers';
-import { TransactionReceipt, useAccount, useERC20, useERC721, useFluence, useStarkSigner } from '../ethereum_provider';
-import BN from "bn.js";
+import {
+  TransactionReceipt,
+  useAccount,
+  useERC20,
+  useERC721,
+  useFluence,
+  useFluenceInstance,
+  useStarkSigner
+} from '../ethereum_provider';
 
 const L2_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS;
 
@@ -29,6 +34,7 @@ const Deposit: NextPage = () => {
   const erc721 = useERC721();
   const fluence = useFluence();
   const starkSigner = useStarkSigner();
+  const fluenceInstance = useFluenceInstance();
 
   const [token, setToken] = useState(1);
   const [amountOrTokenId, setAmountOrTokenId] = useState(0);
@@ -41,63 +47,36 @@ const Deposit: NextPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!account || !erc20 || !erc721 || !fluence || !starkSigner) {
+    if (!account || !erc20 || !erc721 || !fluence || !starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
     switch (((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.name) {
       case 'deposit': {
-        const contract = [null, erc20, erc721][token];
-        setTransactions((!contract ? [
-          await fluence['deposit(uint256,uint256)'](
-            L2_CONTRACT_ADDRESS,
-            BigNumber.from(String(await starkSigner.derive_stark_key())),
-            { value: amountOrTokenId, gasLimit: 180000 }),
-        ] : [
-          await contract.approve(fluence.address, amountOrTokenId),
-          await fluence['deposit(uint256,uint256,uint256,address)'](
-            L2_CONTRACT_ADDRESS,
-            BigNumber.from(String(await starkSigner.derive_stark_key())),
-            amountOrTokenId,
-            contract.address,
-            { gasLimit: 180000 }),
-        ]).map(tx => ({
-          layer: 1,
-          hash: tx.hash,
-        })));
+        const hs = await fluenceInstance.deposit(starkSigner, amountOrTokenId, [undefined, erc20, erc721][token]);
+        setTransactions(hs.map(hash => ({ layer: 1, hash })));
         break;
       }
 
       case 'withdraw-l2': {
-        const contract = ['0x0', erc20.address, erc721.address][token];
-        const [stark_key, signature] = await starkSigner.sign([
-          amountOrTokenId,
-          new BN(contract.slice(2), 16),
-          new BN(account.slice(2), 16),
-        ]);
-        const { data } = await axios.post<{ transaction_hash: string }>(`/api/v1/withdraw?signature=${signature.r},${signature.s}`, {
-          user: String(await starkSigner.derive_stark_key()),
-          amount_or_token_id: amountOrTokenId,
-          contract: [0, erc20.address, erc721.address][token],
-          address: account,
-        });
-        setTransactions([{ layer: 2, hash: data.transaction_hash }]);
+        const hash = await fluenceInstance.withdraw(account, starkSigner, amountOrTokenId, [undefined, erc20.address, erc721.address][token]);
+        setTransactions([{ layer: 2, hash }]);
         break;
       }
 
       case 'withdraw-l1':
-        setTransactions([
-          await fluence.withdraw(
-            L2_CONTRACT_ADDRESS,
-            account,
-            amountOrTokenId,
-            ['0x0', erc20.address, erc721.address][token],
-            { gasLimit: 110000 }),
-        ].map(tx => ({
-          layer: 1,
-          hash: tx.hash,
-        })));
+        let mint = false;
+        if (2 === token) {
+          try {
+            await erc721.ownerOf(amountOrTokenId);
+            mint = true;
+          } catch {
+          }
+        }
+
+        const hash = await fluenceInstance.doWithdraw(account, amountOrTokenId, [undefined, erc20.address, erc721.address][token], mint);
+        setTransactions([{ layer: 1, hash }]);
         break;
     }
 
@@ -105,37 +84,26 @@ const Deposit: NextPage = () => {
   };
   const handleGetBalance = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!erc20 || !starkSigner) {
+    if (!erc20 || !starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
-    const stark_key = await starkSigner.derive_stark_key();
-    const { data } = await axios.get<{ balance: number }>('/api/v1/balance', {
-      params: {
-        user: String(stark_key),
-        contract: [0, erc20.address][token2],
-      }
-    });
+    const balance = await fluenceInstance.getBalance(starkSigner, [undefined, erc20.address][token2]);
+    setBalance(balance.toNumber());
 
-    setBalance(data.balance);
     setLoading(false);
   };
   const handleGetOwner = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!erc721 || !starkSigner) {
+    if (!erc721 || !starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
-    const { data } = await axios.get<{ owner: string }>('/api/v1/owner', {
-      params: {
-        token_id: tokenId,
-        contract: erc721.address,
-      }
-    });
+    const owner = await fluenceInstance.getOwner(tokenId, erc721.address);
+    setOwner(owner.toString());
 
-    setOwner(data.owner);
     setLoading(false);
   };
 

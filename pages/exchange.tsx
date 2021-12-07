@@ -17,12 +17,13 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { useERC20, useERC721, useStarkSigner } from '../ethereum_provider';
+import { useERC20, useERC721, useFluenceInstance, useStarkSigner } from '../ethereum_provider';
 
 const Exchange: NextPage = () => {
   const erc20 = useERC20();
   const erc721 = useERC721();
   const starkSigner = useStarkSigner();
+  const fluenceInstance = useFluenceInstance();
 
   const [orderId, setOrderId] = useState(0);
   const [side, setSide] = useState(0);
@@ -36,58 +37,36 @@ const Exchange: NextPage = () => {
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!erc20 || !erc721 || !starkSigner) {
+    if (!erc20 || !erc721 || !starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
-    const [stark_key, signature] = await starkSigner.sign([
-      orderId,
-      side,
-      new BN(erc721.address.slice(2), 16),
-      tokenId,
-      new BN(erc20.address.slice(2), 16),
-      price,
-    ]);
-    const { data } = await axios.put<{ transaction_hash: string }>(`/api/v1/orders/${orderId}?signature=${signature.r},${signature.s}`, {
-      user: String(stark_key),
-      bid: side,
-      base_contract: erc721.address,
-      base_token_id: tokenId,
-      quote_contract: erc20.address,
-      quote_amount: price,
-    });
+    const hash = await fluenceInstance.createOrder(starkSigner, orderId, !!side, erc721.address, tokenId, erc20.address, price);
+    setTransactions([hash]);
 
-    setTransactions([data.transaction_hash]);
     setLoading(false);
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!starkSigner) {
+    if (!starkSigner || !fluenceInstance) {
       return;
     }
 
     setLoading(true);
     switch (((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.name) {
       case 'get': {
-        const { data } = await axios.get<LimitOrder>(`/api/v1/orders/${orderId2}`);
-        setOrder(data);
+        setOrder(await fluenceInstance.getOrder(orderId2));
         break;
       }
 
       case 'cancel': {
-        const [_, signature] = await starkSigner.sign([orderId2]);
-        const { data } = await axios.delete<{ transaction_hash: string }>(`/api/v1/orders/${orderId2}?signature=${signature.r},${signature.s}`);
-        setTransactions2([data.transaction_hash]);
+        setTransactions2([await fluenceInstance.cancelOrder(starkSigner, orderId2)]);
         break;
       }
 
       case 'fulfill': {
-        const [stark_key, signature] = await starkSigner.sign([orderId2]);
-        const { data } = await axios.post<{ transaction_hash: string }>(`/api/v1/orders/${orderId2}?signature=${signature.r},${signature.s}`, {
-          user: String(stark_key),
-        });
-        setTransactions2([data.transaction_hash]);
+        setTransactions2([await fluenceInstance.fulfillOrder(starkSigner, orderId2)]);
         break;
       }
     }
