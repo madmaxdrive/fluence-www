@@ -70,6 +70,17 @@ export function useFluence() {
     ), [provider, account]);
 }
 
+export function useForwarder() {
+  const provider = useProvider();
+  const account = useAccount();
+
+  return useMemo(() =>
+    provider && account && Fluence.forwarder(
+      process.env.NEXT_PUBLIC_FORWARDER_CONTRACT_ADDRESS as string,
+      provider.getSigner(account)
+    ), [provider, account]);
+}
+
 export function useStarkSigner() {
   const provider = useProvider();
   const account = useAccount();
@@ -85,12 +96,14 @@ export function useStarkSigner() {
 
 export function useFluenceInstance() {
   const fluence = useFluence();
+  const forwarder = useForwarder();
 
   return useMemo(() =>
-    fluence && new Fluence(
+    fluence && forwarder && new Fluence(
       axios.create({ baseURL: '/api/v1' }),
       fluence,
-      process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS as string), [fluence]);
+      forwarder,
+      process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS as string), [fluence, forwarder]);
 }
 
 export interface TransactionReceipt {

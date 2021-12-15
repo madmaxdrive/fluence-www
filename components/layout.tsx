@@ -22,6 +22,9 @@ export default function Layout({ children }: PropsWithChildren<{}>) {
         <NextLink href="/exchange">
           <Link mx={.5}>Exchange</Link>
         </NextLink>
+        <NextLink href="/register_contract">
+          <Link mx={.5}>Register contract</Link>
+        </NextLink>
         <Typography variant="body2">{account}</Typography>
       </footer>
     </div>
