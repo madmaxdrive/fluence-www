@@ -836,10 +836,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@phanalpha/fluence@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@phanalpha/fluence/-/fluence-0.3.0.tgz#6e28a6b26e911deb4668bc00434e86871cfeb052"
-  integrity sha512-5LaWImpM0nZs2o1xG2jtp45gr8Ocf69T4p4Rw8EGu3dqHhh0wLId7AgkgCuM9ZCwkLZtvD59Jh6lph66mOL9KQ==
+"@phanalpha/fluence@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@phanalpha/fluence/-/fluence-0.4.1.tgz#3982aeb9e886a8ae4a7e2068fcc564021efeefbf"
+  integrity sha512-BOJpm7oFPoZAQQgza4U4MizdxM6RAclJ38ftkJzNBkGjlYlsitXkt6frf2NKWWDQpyBMfgyk00tUYAs56qyyDg==
   dependencies:
     "@phanalpha/starkcrypto" "^0.1.2"
     axios "^0.24.0"
