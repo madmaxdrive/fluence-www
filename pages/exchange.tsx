@@ -25,12 +25,13 @@ const Exchange: NextPage = () => {
   const starkSigner = useStarkSigner();
   const fluenceInstance = useFluenceInstance();
 
-  const [orderId, setOrderId] = useState(0);
+  const [orderId, setOrderId] = useState('');
   const [side, setSide] = useState(0);
   const [tokenId, setTokenId] = useState(0);
+  const [quoteContract, setQuoteContract]= useState(0);
   const [price, setPrice] = useState(0);
   const [transactions, setTransactions] = useState<string[]>([]);
-  const [orderId2, setOrderId2] = useState(0);
+  const [orderId2, setOrderId2] = useState('');
   const [order, setOrder] = useState<LimitOrder>();
   const [transactions2, setTransactions2] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +43,14 @@ const Exchange: NextPage = () => {
     }
 
     setLoading(true);
-    const hash = await fluenceInstance.createOrder(starkSigner, orderId, !!side, erc721.address, tokenId, erc20.address, price);
+    const hash = await fluenceInstance.createOrder(
+      starkSigner,
+      new BN(orderId),
+      !!side,
+      erc721.address,
+      tokenId,
+      ['0x0', erc20.address][quoteContract],
+      price);
     setTransactions([hash]);
 
     setLoading(false);
@@ -61,12 +69,12 @@ const Exchange: NextPage = () => {
       }
 
       case 'cancel': {
-        setTransactions2([await fluenceInstance.cancelOrder(starkSigner, orderId2)]);
+        setTransactions2([await fluenceInstance.cancelOrder(starkSigner, new BN(orderId2))]);
         break;
       }
 
       case 'fulfill': {
-        setTransactions2([await fluenceInstance.fulfillOrder(starkSigner, orderId2)]);
+        setTransactions2([await fluenceInstance.fulfillOrder(starkSigner, new BN(orderId2))]);
         break;
       }
     }
@@ -89,7 +97,7 @@ const Exchange: NextPage = () => {
           variant="outlined"
           type="number"
           label="Order #"
-          onChange={({ target: { value }}) => setOrderId(+value)}
+          onChange={({ target: { value }}) => setOrderId(value)}
         />
         <FormControl
           required
@@ -116,12 +124,27 @@ const Exchange: NextPage = () => {
           label="Token # (TDRN)"
           onChange={({ target: { value }}) => setTokenId(+value)}
         />
+        <FormControl
+          required
+          fullWidth
+          margin="normal"
+        >
+          <InputLabel id="token">Token</InputLabel>
+          <Select
+            labelId="token"
+            label="Quote contract *"
+            value={quoteContract}
+            onChange={({ target: { value } }) => setQuoteContract(+value)}>
+            <MenuItem value={0}>Ethereum / ETH</MenuItem>
+            <MenuItem value={1}>Testdrive / TDR (ERC20)</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           required
           fullWidth
           margin="normal"
           variant="outlined"
-          label="Price (TDR)"
+          label="Price"
           onChange={({ target: { value }}) => setPrice(+value)}
         />
 
@@ -144,7 +167,7 @@ const Exchange: NextPage = () => {
           margin="normal"
           variant="outlined"
           label="Order #"
-          onChange={({ target: { value }}) => setOrderId2(+value)}
+          onChange={({ target: { value }}) => setOrderId2(value)}
         />
 
         <Box my={2}>

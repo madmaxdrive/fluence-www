@@ -26,8 +26,6 @@ import {
   useStarkSigner
 } from '../ethereum_provider';
 
-const L2_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS;
-
 const Deposit: NextPage = () => {
   const account = useAccount();
   const erc20 = useERC20();

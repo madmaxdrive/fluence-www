@@ -65,7 +65,7 @@ export function useFluence() {
 
   return useMemo(() =>
     provider && account && Fluence.contract(
-      process.env.NEXT_PUBLIC_FLUENCE_CONTRACT_ADDRESS as string,
+      process.env.NEXT_PUBLIC_ETHER_FLUENCE_CONTRACT_ADDRESS as string,
       provider.getSigner(account)
     ), [provider, account]);
 }
@@ -76,7 +76,7 @@ export function useForwarder() {
 
   return useMemo(() =>
     provider && account && Fluence.forwarder(
-      process.env.NEXT_PUBLIC_FORWARDER_CONTRACT_ADDRESS as string,
+      process.env.NEXT_PUBLIC_ETHER_FORWARDER_CONTRACT_ADDRESS as string,
       provider.getSigner(account)
     ), [provider, account]);
 }
@@ -103,7 +103,7 @@ export function useFluenceInstance() {
       axios.create({ baseURL: '/api/v1' }),
       fluence,
       forwarder,
-      process.env.NEXT_PUBLIC_L2_CONTRACT_ADDRESS as string), [fluence, forwarder]);
+      process.env.NEXT_PUBLIC_STARK_FLUENCE_CONTRACT_ADDRESS as string), [fluence, forwarder]);
 }
 
 export interface TransactionReceipt {
